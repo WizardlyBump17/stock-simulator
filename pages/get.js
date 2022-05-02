@@ -1,6 +1,6 @@
 const CURRENCIES = {'BRL': 'R$', 'USD': '$'}
 
-export default function (props) {
+export default function Get(props) {
     return (<>
         <form onSubmit={show}>
             <input type="text" name="company" required/>
