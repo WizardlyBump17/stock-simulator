@@ -1,5 +1,3 @@
-import Script from "next/script"
-
 const CURRENCIES = {'BRL': 'R$', 'USD': '$'}
 
 export default function (props) {
@@ -113,11 +111,10 @@ function showPrices(timespamp, close, currency, depth=5) {
 function fixArray(array, first) {
     let last = first;
     for (let i = 0; i < array.length; i++) {
-        if (array[i] == null) {
+        if (array[i] == null) 
             array[i] = last;
-        } else {
+        else 
             last = array[i];
-        }
     }
     return array;
 }
