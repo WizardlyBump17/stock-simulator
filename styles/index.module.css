@@ -1,0 +1,14 @@
+.action h1 {
+    margin: 0;
+}
+
+.action {
+    border: 1px solid black;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+.action * {
+    padding: 5px;
+}
