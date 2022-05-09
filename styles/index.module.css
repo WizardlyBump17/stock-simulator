@@ -36,17 +36,6 @@
 }
 
 #graphic {
-    background-color: white;
-}
-
-.rect:hover {
-    opacity: 1;
-}
-
-.rect {
-    opacity: 0;
-}
-
-#rects * {
-    pointer-events: visiblePainted;
+    width: 100%;
+    height: 400px;
 }

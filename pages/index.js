@@ -1,14 +1,17 @@
 import styles from '../styles/index.module.css'
+import Script from 'next/script'
 
 const CURRENCIES = {'BRL': 'R$', 'USD': '$'}
 const CANVAS_WIDTH = 1000
 const CANVAS_HEIGHT = 300
 const _60_DAYS = 60 * 24 * 60 * 60
 const _7_DAYS = 7 * 24 * 60 * 60
-const CIRCLE_RADIUS = 3
+const VALID_ITERVALS = ['1m', '5m', '1d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 
 export default function Get(props) {
     return (<>
+        <Script src="https://cdn.plot.ly/plotly-2.12.0.js" charset="utf-8"></Script>
+
         <form onSubmit={show} className={styles.form}>
             <label htmlFor="company">Company symbol</label>
             <input type="text" name="company" required/>
@@ -21,6 +24,9 @@ export default function Get(props) {
 
             <label htmlFor="actions">How many actions</label>
             <input type="number" placeholder="How many actions" name="actions" required id="actions" defaultValue="100" min="1"/>
+
+            <label htmlFor="interval">Interval</label>
+            <input type="text" placeholder="Interval" defaultValue="1m" name="interval" required id="interval"/>
 
             <button type="submit">Get</button>
         </form>
@@ -41,21 +47,29 @@ async function show(event) {
         return
     }
 
+    const interval = document.getElementById('interval').value
+    if (!VALID_ITERVALS.includes(interval.toLowerCase())) {
+        document.getElementById('error').innerHTML = `Invalid interval.<br>Valid intervals: <b>${VALID_ITERVALS.join(', ')}</b>`
+        return
+    }
+
+    document.getElementById('error').innerHTML = ''
+
     const actions = document.getElementById('actions').value
-    const result = await get(event.target.company.value, actions, undefined, from, to)
+    const result = await get(event.target.company.value, actions, interval, from, to)
 
     document.getElementById(styles.result).innerHTML = `${result}`
 }
 
-async function get(symbol, actions, interval='1m', start=fixDate(new Date()), end=fixDate(new Date())) {
+async function get(symbol, actions, interval, start, end) {
     const now = fixDate(new Date())
 
     if (end > now)
         end = now
 
-    if (Math.abs(end - now) > _7_DAYS || end - start > _7_DAYS) 
+    if ((Math.abs(end - now) > _7_DAYS || end - start > _7_DAYS) && interval == '1m') 
         interval = '5m'
-    if (Math.abs(end - now) > _60_DAYS || end - start > _60_DAYS) 
+    if ((Math.abs(end - now) > _60_DAYS || end - start > _60_DAYS) && (interval == '1m' || interval == '5m')) 
         interval = '1d'
 
     const data = await (await fetch(`/api/get_data?company=${symbol}&start=${start}&end=${end}&interval=${interval}`)).json()
@@ -91,10 +105,8 @@ async function get(symbol, actions, interval='1m', start=fixDate(new Date()), en
         <h3>You spent ${currency + format(close[0] * actions)} and finished with ${currency + format(multiply(close[0] * actions, profit))} (${currency + format(close[0] * actions * (profit / 100))})</h3>
         <ul class=${styles.prices}>
             <h3>Price</h3>
-            <canvas id=${styles.graphic} width="${CANVAS_WIDTH}px" height="${CANVAS_HEIGHT}px"></canvas>
-            ${showPrices(timestamp, close, currency, 1)}
-            <div id=${styles.rects}></div>
-            <span id='dot'></span>
+            <div id="${styles.graphic}"></div>
+            ${showPrices(symbol, timestamp, json.indicators.quote[0], currency)}
         </ul>
     `
 }
@@ -110,65 +122,51 @@ function multiply(value, percentage) {
     return value + value * (percentage / 100)
 }
 
-function showPrices(timestamp, close, currency) {
-    setTimeout(() => {
-        const rects = document.getElementById(styles.rects)
-
-        let canvas = document.getElementById(styles.graphic)
-        let context = canvas.getContext('2d')
-    
-        context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
-        context.beginPath()
-    
-        const higher = getHiger(close)
-        const x = 0
-        const xStep = CANVAS_WIDTH / timestamp.length
-
-        let lastClose = close[0]
-        for (let i = 0; i < timestamp.length; i++) {
-
-            const date = new Date(timestamp[i] * 1000);
-            const y = CANVAS_HEIGHT / 2 + CANVAS_HEIGHT - (close[i] / higher * CANVAS_HEIGHT)
-
-            context.lineTo(x, y)
-            context.lineWidth = 2
-            context.strokeStyle = close[i] >= lastClose ? 'green' : 'red'
-            context.stroke()
-            context.beginPath()
-            context.moveTo(x, y)
-
-            rects.appendChild(createRect(x, y, xStep * 2, CANVAS_HEIGHT, date.toLocaleString() + ' ' + currency + format(close[i]), canvas, close[i] >= lastClose ? 'green' : 'red'))
-
-            lastClose = close[i]
-
-            x += xStep
-        }
-    })
-    return ''
+function reverseArray(array) {
+    const reversed = []
+    for (let i = array.length - 1; i >= 0; i--)
+        reversed.push(array[i])
+    return reversed
 }
 
-function createRect(x, y, width, height, html, canvas, color) {
-    const rect = document.createElement('div')
-    const dot = document.getElementById('dot')
+function showPrices(company, timestamp, quote, currency) {
+    setTimeout(() => {
+        const trace = {
+            type: 'candlestick',
+            xaxis: 'x',
+            yaxis: 'y',
+            x: timestamp.map(t => new Date(t * 1000).toLocaleString()),
+            close: quote.close,
+            high: quote.high,
+            low: quote.low,
+            open: quote.open,
 
-    rect.className = styles.rect
-    rect.style.position = 'absolute'
-    rect.style.left = canvas.getBoundingClientRect().left + x + 'px'
-    rect.style.top = canvas.getBoundingClientRect().top - window.screenY + 'px'
-    rect.style.width = width + 'px'
-    rect.style.height = height + 'px'
-    rect.innerHTML = html
-    rect.style.opacity = 0
-    rect.style.color = color
+            increasing: {
+                line: {
+                    color: '#00ff00'
+                }
+            },
+            decreasing: {
+                line: {
+                    color: '#ff0000'
+                }
+            }
+        }
 
-    rect.onmouseover = () => {
-        rect.style.opacity = 1
-    }
-    rect.onmouseout = () => {
-        rect.style.opacity = 0
-    }
+        const layout = {
+            title: company,
+            dragmode: 'zoom',
+            showlegend: false,
+            xaxis: {
+                rangeslider: {
+                    visible: true
+                }
+            }
+        }
 
-    return rect
+        Plotly.newPlot(styles.graphic, [trace], layout)
+    })
+    return ''
 }
 
 function fixArray(array, first) {
@@ -184,15 +182,6 @@ function fixArray(array, first) {
 
 function getPercentage(intial, final) {
     return ((final - intial) / intial) * 100
-}
-
-function getHiger(array) {
-    let higher = array[0]
-    for (let i = 1; i < array.length; i++) {
-        if (array[i] > higher)
-            higher = array[i]
-    }
-    return higher
 }
 
 function format(number) {
