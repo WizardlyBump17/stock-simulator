@@ -173,7 +173,7 @@ function showPrices(company, timestamp, quote, interval, currency) {
                 ]
             },
             yaxis: {
-                range: [quote.close[0], quote.close[quote.close.length - 1]],
+                range: [quote.close[quote.close.length - 1], quote.close[0]],
                 type: 'linear',
                 autorange: true
             },
