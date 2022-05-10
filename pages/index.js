@@ -1,5 +1,6 @@
 import styles from '../styles/index.module.css'
 import Script from 'next/script'
+import Head from 'next/head'
 
 const CURRENCIES = {'BRL': 'R$', 'USD': '$'}
 const _60_DAYS = 60 * 24 * 60 * 60
@@ -9,6 +10,10 @@ const VALID_ITERVALS = ['1m', '5m', '1d', '1mo', '3mo', '6mo', '1y', '2y', '5y',
 
 export default function Get(props) {
     return (<>
+        <Head>
+            <title>Stock Simulator</title>
+        </Head>
+
         <Script src="https://cdn.plot.ly/plotly-2.12.0.js" charset="utf-8"></Script>
 
         <form onSubmit={show} className={styles.form}>
@@ -111,15 +116,18 @@ async function get(symbol, actions, interval, start, end) {
         currency = '$'
 
     return `
-        <h1>${symbol.includes('.') ? symbol.substring(0, symbol.indexOf('.')) : symbol}</h1>
-        <h2>${profit >= 0 ? '+' : ''}${format(profit)}% (${currency + format(close[0])} ➜ ${currency + format(close[close.length - 1])}, ${(diff >= 0 ? '+' : '') + currency + format(diff)})</h2>
-        <h3>1 Action = ${currency + format(close[0])}</h3>
-        <h3>You spent ${currency + format(close[0] * actions)} and finished with ${currency + format(multiply(close[0] * actions, profit))} (${currency + format(close[0] * actions * (profit / 100))})</h3>
-        <ul class=${styles.prices}>
-            <h3>Price</h3>
+        <h1 class="center">${symbol.includes('.') ? symbol.substring(0, symbol.indexOf('.')) : symbol}</h1>
+        <h2 class="center">${profit >= 0 ? '+' : ''}${format(profit)}% (${currency + format(close[0])} ➜ ${currency + format(close[close.length - 1])}, ${(diff >= 0 ? '+' : '') + currency + format(diff)})</h2>
+        <h3 class="center">1 Action = ${currency + format(close[0])}</h3>
+        <h3 class="center">
+            <span class="small">${new Date(timestamp[0] * 1000).toLocaleString()}</span> ${currency + format(close[0] * actions)} ➜
+            ${currency + format(multiply(close[0] * actions, profit))} <span class="small">${new Date(timestamp[timestamp.length - 1] * 1000).toLocaleString()}</span>
+            <span style="color: ${profit >= 0 ? 'lime' : 'red'}">${currency + format(close[0] * actions * (profit / 100))}</span>
+        </h3>
+        <div>
             <div id="${styles.graphic}"></div>
             ${showPrices(symbol, timestamp, json.indicators.quote[0], interval, currency)}
-        </ul>
+        </div>
     `
 }
 
@@ -148,7 +156,6 @@ function showPrices(company, timestamp, quote, interval, currency) {
             showlegend: false
         }
 
-        const fixedClose = reverseArray(quote.close)
         const layout = {
             title: `${company} Historical Price`,
             xaxis: {
@@ -166,7 +173,7 @@ function showPrices(company, timestamp, quote, interval, currency) {
                 ]
             },
             yaxis: {
-                range: [fixedClose[0], fixedClose[fixedClose.length - 1]],
+                range: [quote.close[0], quote.close[quote.close.length - 1]],
                 type: 'linear',
                 autorange: true
             },
