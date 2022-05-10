@@ -118,7 +118,7 @@ async function get(symbol, actions, interval, start, end) {
     return `
         <h1 class="center">${symbol.includes('.') ? symbol.substring(0, symbol.indexOf('.')) : symbol}</h1>
         <h2 class="center">${profit >= 0 ? '+' : ''}${format(profit)}% (${currency + format(close[0])} ➜ ${currency + format(close[close.length - 1])}, ${(diff >= 0 ? '+' : '') + currency + format(diff)})</h2>
-        <h3 class="center">1 Action = ${currency + format(close[0])}</h3>
+        <h3 class="center">100 Actions, 1 Action = ${currency + format(close[0])}</h3>
         <h3 class="center">
             <span class="small">${new Date(timestamp[0] * 1000).toLocaleString()}</span> ${currency + format(close[0] * actions)} ➜
             ${currency + format(multiply(close[0] * actions, profit))} <span class="small">${new Date(timestamp[timestamp.length - 1] * 1000).toLocaleString()}</span>
@@ -156,6 +156,12 @@ function showPrices(company, timestamp, quote, interval, currency) {
             showlegend: false
         }
 
+        const range = []
+        if (quote.close[quote.close.length - 1] > quote.close[0])
+            range.push(quote.close[0], quote.close[quote.close.length - 1])
+        else
+            range.push(quote.close[quote.close.length - 1], quote.close[0])
+
         const layout = {
             title: `${company} Historical Price`,
             xaxis: {
@@ -173,7 +179,7 @@ function showPrices(company, timestamp, quote, interval, currency) {
                 ]
             },
             yaxis: {
-                range: [quote.close[quote.close.length - 1], quote.close[0]],
+                range: range,
                 type: 'linear',
                 autorange: true
             },
@@ -188,13 +194,6 @@ function showPrices(company, timestamp, quote, interval, currency) {
         Plotly.newPlot(styles.graphic, [trace], layout)
     })
     return ''
-}
-
-function reverseArray(array) {
-    let newArray = []
-    for (let i = array.length - 1; i >= 0; i--)
-        newArray.push(array[i])
-    return newArray
 }
 
 function fixArray(array, first) {
