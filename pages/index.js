@@ -118,7 +118,7 @@ async function get(symbol, actions, interval, start, end) {
         <ul class=${styles.prices}>
             <h3>Price</h3>
             <div id="${styles.graphic}"></div>
-            ${showPrices(symbol, timestamp, json.indicators.quote[0], interval)}
+            ${showPrices(symbol, timestamp, json.indicators.quote[0], interval, currency)}
         </ul>
     `
 }
@@ -134,7 +134,7 @@ function multiply(value, percentage) {
     return value + value * (percentage / 100)
 }
 
-function showPrices(company, timestamp, quote, interval) {
+function showPrices(company, timestamp, quote, interval, currency) {
     setTimeout(() => {
         const trace = {
             type: 'scatter',
@@ -143,9 +143,12 @@ function showPrices(company, timestamp, quote, interval) {
             y: quote.close,
             line: {
                 color: '#00ff00'
-            }
+            },
+            hovertemplate: timestamp.map((t, i) => currency + format(quote.close[i]) + '<extra></extra>'),
+            showlegend: false
         }
 
+        const fixedClose = reverseArray(quote.close)
         const layout = {
             title: `${company} Historical Price`,
             xaxis: {
@@ -163,7 +166,7 @@ function showPrices(company, timestamp, quote, interval) {
                 ]
             },
             yaxis: {
-                range: [quote.close[0], quote.close[quote.close.length - 1]],
+                range: [fixedClose[0], fixedClose[fixedClose.length - 1]],
                 type: 'linear',
                 autorange: true
             },
@@ -178,6 +181,13 @@ function showPrices(company, timestamp, quote, interval) {
         Plotly.newPlot(styles.graphic, [trace], layout)
     })
     return ''
+}
+
+function reverseArray(array) {
+    let newArray = []
+    for (let i = array.length - 1; i >= 0; i--)
+        newArray.push(array[i])
+    return newArray
 }
 
 function fixArray(array, first) {
@@ -196,7 +206,7 @@ function getPercentage(intial, final) {
 }
 
 function format(number) {
-    return number.toLocaleString('pt-BR', {maximumFractionDigits: 2, minimumFractionDigits: 0})
+    return number.toLocaleString('pt-BR', {maximumFractionDigits: 2, minimumFractionDigits: 2})
 }
 
 function fixDate(date) {
