@@ -2,10 +2,9 @@ import styles from '../styles/index.module.css'
 import Script from 'next/script'
 
 const CURRENCIES = {'BRL': 'R$', 'USD': '$'}
-const CANVAS_WIDTH = 1000
-const CANVAS_HEIGHT = 300
 const _60_DAYS = 60 * 24 * 60 * 60
 const _7_DAYS = 7 * 24 * 60 * 60
+const _5_YEARS = 5 * 365 * 24 * 60 * 60
 const VALID_ITERVALS = ['1m', '5m', '1d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 
 export default function Get(props) {
@@ -31,8 +30,9 @@ export default function Get(props) {
             <button type="submit">Get</button>
         </form>
 
-        <div id={styles.result}></div>
+        <p style={{color: 'yellow'}} id="warning"></p>
         <p style={{color: 'red'}} id="error"></p>
+        <div id={styles.result}></div>
     </>)
 }
 
@@ -53,12 +53,21 @@ async function show(event) {
         return
     }
 
-    document.getElementById('error').innerHTML = ''
-
     const actions = document.getElementById('actions').value
     const result = await get(event.target.company.value, actions, interval, from, to)
 
+    if (result.error) {
+        document.getElementById('error').innerHTML = `ERROR:<br>${result.error.code}.<br>${result.error.description}.`
+        return
+    }
+
+    if (to - from >= _5_YEARS) 
+        document.getElementById('warning').innerHTML = 'The range between the dates is too big. It will take a while to load the graphic and it may lag.'
+
+    document.getElementById('error').innerHTML = ''
     document.getElementById(styles.result).innerHTML = `${result}`
+
+    setTimeout(() => document.getElementById('warning').innerHTML = '', 5000)
 }
 
 async function get(symbol, actions, interval, start, end) {
@@ -73,6 +82,9 @@ async function get(symbol, actions, interval, start, end) {
         interval = '1d'
 
     const data = await (await fetch(`/api/get_data?company=${symbol}&start=${start}&end=${end}&interval=${interval}`)).json()
+
+    if (data.chart.error)
+        return {error: data.chart.error}
 
     const json = data.chart.result[0]
 
@@ -106,7 +118,7 @@ async function get(symbol, actions, interval, start, end) {
         <ul class=${styles.prices}>
             <h3>Price</h3>
             <div id="${styles.graphic}"></div>
-            ${showPrices(symbol, timestamp, json.indicators.quote[0], currency)}
+            ${showPrices(symbol, timestamp, json.indicators.quote[0], interval)}
         </ul>
     `
 }
@@ -122,47 +134,46 @@ function multiply(value, percentage) {
     return value + value * (percentage / 100)
 }
 
-function reverseArray(array) {
-    const reversed = []
-    for (let i = array.length - 1; i >= 0; i--)
-        reversed.push(array[i])
-    return reversed
-}
-
-function showPrices(company, timestamp, quote, currency) {
+function showPrices(company, timestamp, quote, interval) {
     setTimeout(() => {
         const trace = {
-            type: 'candlestick',
-            xaxis: 'x',
-            yaxis: 'y',
-            x: timestamp.map(t => new Date(t * 1000).toLocaleString()),
-            close: quote.close,
-            high: quote.high,
-            low: quote.low,
-            open: quote.open,
-
-            increasing: {
-                line: {
-                    color: '#00ff00'
-                }
-            },
-            decreasing: {
-                line: {
-                    color: '#ff0000'
-                }
+            type: 'scatter',
+            mode: 'lines',
+            x: timestamp.map(t => t * 1000),
+            y: quote.close,
+            line: {
+                color: '#00ff00'
             }
         }
 
         const layout = {
-            title: company,
-            dragmode: 'zoom',
-            showlegend: false,
+            title: `${company} Historical Price`,
             xaxis: {
-                rangeslider: {
-                    visible: true
-                }
-            }
+                range: [timestamp[0] * 1000, timestamp[timestamp.length - 1] * 1000],
+                type: 'date',
+                rangebreaks: [
+                    {
+                        pattern: 'hour',
+                        bounds: [18, 10]
+                    },
+                    {
+                        pattern: 'day of week',
+                        bounds: [6, 1]
+                    }
+                ]
+            },
+            yaxis: {
+                range: [quote.close[0], quote.close[quote.close.length - 1]],
+                type: 'linear',
+                autorange: true
+            },
+            hovermode: 'x'
         }
+
+        if (VALID_ITERVALS.indexOf(interval) >= VALID_ITERVALS.indexOf('1mo')) 
+            layout.xaxis.rangebreaks = undefined
+
+        console.log(timestamp.length)
 
         Plotly.newPlot(styles.graphic, [trace], layout)
     })
